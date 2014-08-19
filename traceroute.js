@@ -3,6 +3,25 @@ var child = require('child_process'),
     dns = require('dns'),
     isWin = (/^win/.test(require('os').platform()));
 
+function createArgString(host, options) {
+  var args = {},
+    argString = '';
+
+  if(isWin) {
+
+  }
+  else {
+    args.q = options.nqueries || 1;
+    args.n = '';
+
+    if (options.max_ttl) args.m = options.max_ttl;
+  }
+
+  for(var flag in args) {
+    argString += ' -' + flag + ' ' + args[flag];
+  }
+  return argString + ' ' + host;
+}
 
 function parseHop(line) {
   line = line.replace(/\*/g,'0');
@@ -69,12 +88,18 @@ function parseOutput(output,cb) {
   cb(null,hops);
 }
 
-function trace(host,cb) {
+function trace(host,options,cb) {
+  if(typeof options == 'function') {
+      cb = options;
+      options = {};
+  }
+
   dns.lookup(host, function (err) {
     if (err && net.isIP(host) === 0)
       cb('Invalid host');
     else {
       var traceroute;
+      var argString = createArgString(host, options);
 
       if (isWin) {
         traceroute = child.exec('tracert -d ' + host, function (err,stdout,stderr) {
@@ -83,16 +108,16 @@ function trace(host,cb) {
         });
       }
       else {
-        traceroute = child.exec('traceroute -q 1 -n ' + host, function (err,stdout,stderr) {
-          if (!err)
-            parseOutput(stdout,cb);
+        traceroute = child.exec('traceroute' + argString, function (err,stdout,stderr) {
+        if (!err)
+          parseOutput(stdout,cb);
         });
       }
     }
   });
 }
 
-exports.trace = function (host,cb) {
+exports.trace = function (host,options,cb) {
   host = host + '';
-  trace(host.toUpperCase(),cb);
+  trace(host.toUpperCase(),options,cb);
 }
